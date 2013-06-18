@@ -1,0 +1,145 @@
+﻿<html>
+<head >
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<title>WegGL SWAT3 map viewer</title>
+	<!-- <link rel="stylesheet" type="text/css" href="main.css"> -->
+	<script src="http://code.jquery.com/jquery-1.9.1.min.js"></script>
+	<script src="lib/three.js"></script>
+	<script src="lib/OrbitAndPanControls.new.js"></script>
+	<script src="lib/PointerLockControls_noClip.js"></script>
+	<script src="lib/stats.min.js"></script>
+	<script src="lib/dat.gui.min.js"></script>
+	<script src="scn.js"></script>
+	<script src="skybox.js"></script>
+	<script src="helpers.js"></script>
+	<script src="fpview.js"></script>
+
+
+	<style>
+	html, body {
+		width: 100%;
+		height: 100%;
+	}
+
+	body {
+		background-color: #ffffff;
+		margin: 0;
+		overflow: hidden;
+        font-family: "Open Sans","HelveticaNeue","Helvetica Neue",Helvetica,Arial,sans-serif;
+	}
+
+	.overlay {
+		position: absolute;
+		width: 100%;
+	}
+
+	.box {
+		width: 400px;
+        margin-left: auto;
+        margin-right: auto;
+        margin-top: 100px;
+		background-color: rgba(0,0,0,0.8);
+		padding: 20px;
+		text-align: left;
+		color: white;
+
+	}
+
+	.box a {
+		color: white;
+	}
+
+	.close {
+	  font-size: 23px;
+	  line-height: 0px;
+	  color: #000000;
+	  opacity: 0.3;
+	  text-decoration: none;
+
+	  float:right;
+	}
+
+	.close:hover {
+		opacity:1.0;
+	}
+
+	.box hr{
+		border: 1px dashed;
+	}
+
+	#me{
+		font-size: x-small;
+		font-style:italic;
+	}
+
+	#copyright {
+		font-size: small;
+
+	}
+
+	</style>	
+
+
+</head>
+<body>
+	<script type="text/javascript">
+	var stats = new Stats();
+stats.setMode(0); // 0: fps, 1: ms
+
+// Align top-left
+stats.domElement.style.position = 'absolute';
+stats.domElement.style.left = '0px';
+stats.domElement.style.top = '0px';
+
+document.body.appendChild( stats.domElement );
+
+// setInterval( function () {
+
+// 	stats.begin();
+
+//     // your code goes here
+
+//     stats.end();
+
+// }, 1000 / 60 );
+</script>
+<!-- 
+<div id="blocker">
+
+	<div id="instructions">
+		<span style="font-size:40px">Click to play</span>
+		<br />
+		(W, A, S, D = Move, SPACE = Jump, MOUSE = Look around)
+	</div>
+
+</div> -->
+
+<div class="overlay">
+	<div id="about" class="box" style="display:none;">
+		<a class="close" href="#" onclick="$('#about').toggle();">&times</a>
+
+		<p>This is an experimental WebGL map viewer for <a href="http://en.wikipedia.org/wiki/SWAT_3:_Close_Quarters_Battle">SWAT3</a> scn files. Built on top of <a href="http://threejs.org">three.js</a> and one or two sleepless nights.  </p>
+  
+		<p>	The scn file spec was never released, and I'd be very suprised if it ever was,
+		   but with a bit of patience and free time it's been almost fully reverse engineered. <p>See on github.</p>
+		</p>
+
+		<p id="me"> AlienAbducter<p>
+
+		<hr>
+
+		<p id="copyright"> I don't know who holds the rights to the SWAT franchise. Last time I checked it was in corporate limbo. Nevertheless, the SWAT3 brand and all the artwork on this page belong to their rightful owners. This is for demonstration purposes only.</p>
+	</div>
+</div>
+
+<div id="container">
+	<div id="3dview" style="display:inline-block;"></div>
+
+	
+</div>
+
+<script src="main.js">	</script>
+
+
+</body>
+</html>
