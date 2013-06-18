@@ -62,7 +62,7 @@ function render() {
 	renderer.render(scene, camera);
 }
 
-$.getJSON("./" + MAP + ".json", function(scndata) {
+$.getJSON("./res/" + MAP + ".json", function(scndata) {
 
 	scn = createScn(scndata);
 
@@ -78,7 +78,7 @@ $.getJSON("./" + MAP + ".json", function(scndata) {
 
 	//create skybox
 	scene.add(
-	 	createSkyBox('a_Porch','pngs/')
+	 	createSkyBox('a_Porch','./res/pngs/')
 	);
 
 	animate();
