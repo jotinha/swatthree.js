@@ -4,12 +4,12 @@ function createScn(scndata) {
 
 	var textures = [];
 	for (var t=0; t < scndata.textures.length; t++) {
-		textures.push(createTexture(scndata.textures[t]));
+		textures.push(createTexture('./res/' + scndata.textures[t]));
 	}
 
 	var lightmaps = [];
 	for (var l=0; l < scndata.lightmaps.length; l++) {
-		lightmaps.push(createTexture(scndata.lightmaps[l]));
+		lightmaps.push(createTexture('./res/' + scndata.lightmaps[l]));
 	}
 
 	//load solids

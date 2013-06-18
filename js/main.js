@@ -78,7 +78,7 @@ $.getJSON("./res/" + MAP + ".json", function(scndata) {
 
 	//create skybox
 	scene.add(
-	 	createSkyBox('a_Porch','./res/pngs/')
+	 	createSkyBox('a_Porch','./res/pngs')
 	);
 
 	animate();
