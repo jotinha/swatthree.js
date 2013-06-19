@@ -4,10 +4,11 @@ var startPoint = {
 	y:48,
 	z:318,
 }
-	
 
 var scn, cameraControls, renderer
 var clock = new THREE.Clock();
+
+if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
 
 // RENDERER
 renderer = new THREE.WebGLRenderer( { 
@@ -84,6 +85,8 @@ $.getJSON("./res/" + MAP + ".json", function(scndata) {
 	animate();
 });
 
+// GUI CONTROLLER ------------------------------
+
 var gui = initGUI();
 
 function startFPV() {
@@ -102,6 +105,20 @@ var fpstart = initPL( startFPV, stopFPV);
 
 visControl.fpview = fpstart;
 
+// STATS ----------------------------------------
+
+var stats = new Stats();
+stats.setMode(0); // 0: fps, 1: ms
+
+// Align top-left
+stats.domElement.style.position = 'absolute';
+stats.domElement.style.left = '0px';
+stats.domElement.style.top = '0px';
+
+document.body.appendChild( stats.domElement );
+
+// RENDER ELEMENT ---------------------------------------
+
 document.getElementById('3dview').appendChild( renderer.domElement );
 
 function handleResize() {
@@ -114,4 +131,5 @@ function handleResize() {
 }
 
 window.addEventListener('resize', handleResize, false);
+
 

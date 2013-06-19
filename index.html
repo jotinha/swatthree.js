@@ -5,10 +5,11 @@
 	<!-- <link rel="stylesheet" type="text/css" href="main.css"> -->
 	<script src="http://code.jquery.com/jquery-1.9.1.min.js"></script>
 	<script src="lib/three.min.js"></script>
-	<script src="lib/OrbitAndPanControls.new.js"></script>
-	<script src="lib/PointerLockControls_noClip.js"></script>
 	<script src="lib/stats.min.js"></script>
 	<script src="lib/dat.gui.min.js"></script>
+	<script src="lib/Detector.js"></script>
+	<script src="lib/OrbitAndPanControls.new.js"></script>
+	<script src="lib/PointerLockControls_noClip.js"></script>
 	<script src="js/scn.js"></script>
 	<script src="js/skybox.js"></script>
 	<script src="js/helpers.js"></script>
@@ -81,37 +82,6 @@
 
 </head>
 <body>
-	<script type="text/javascript">
-	var stats = new Stats();
-stats.setMode(0); // 0: fps, 1: ms
-
-// Align top-left
-stats.domElement.style.position = 'absolute';
-stats.domElement.style.left = '0px';
-stats.domElement.style.top = '0px';
-
-document.body.appendChild( stats.domElement );
-
-// setInterval( function () {
-
-// 	stats.begin();
-
-//     // your code goes here
-
-//     stats.end();
-
-// }, 1000 / 60 );
-</script>
-<!-- 
-<div id="blocker">
-
-	<div id="instructions">
-		<span style="font-size:40px">Click to play</span>
-		<br />
-		(W, A, S, D = Move, SPACE = Jump, MOUSE = Look around)
-	</div>
-
-</div> -->
 
 <div class="overlay">
 	<div id="about" class="box" style="display:none;">
@@ -134,7 +104,6 @@ document.body.appendChild( stats.domElement );
 
 <div id="container">
 	<div id="3dview" style="display:inline-block;"></div>
-
 	
 </div>
 
