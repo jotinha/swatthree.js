@@ -25,23 +25,39 @@ function createScn(scndata) {
 
 
 function createSolid(data,textures,lightmaps) {
-	
-	var geom = new THREE.Geometry();
+
+	var geom;
+	var n_cells = data.cells.length || 1;
 
 	//create vertex list
+	var vertices = [];
 	for (var v=0; v < data.verts.length; v++) {
-		geom.vertices.push( new THREE.Vector3(
+		vertices.push( new THREE.Vector3(
 			data.verts[v][0],
 			data.verts[v][1],
 			-data.verts[v][2]
 			));
 	}
 
-	geom.faceVertexUvs = [[],[]];		//2 sets of uv's
+	//one mesh and geometry per cell
+	var geoms = []
+	for (var icell=0; icell < n_cells; icell++) {
+		geom = new THREE.Geometry();
+		geom.vertices = vertices;
+		geom.faceVertexUvs = [[],[]];		//2 sets of uv's
+
+		geoms.push(geom);
+	}
+
 
 	//create faces
 	for (var f=0; f < data.faces.length; f++) {
 		var face = interpretFace(data.faces[f]);
+		
+		//select the appropriate cell
+		var cidx = face.cellIdx >= 0 ? face.cellIdx : 0;
+
+		geom = geoms[cidx];
 
 		geom.faces.push( new THREE.Face3(
 			face.vertIdxs[0],
@@ -118,14 +134,20 @@ function createSolid(data,textures,lightmaps) {
 	}
 	var multipleMaterials = new THREE.MeshFaceMaterial(materials);
 
+	
+	//one mesh per cell
+	var solid = new THREE.Object3D();
+	for (var icell=0; icell < n_cells; icell++) {
+		geom = geoms[icell];
+		geom.computeFaceNormals();
+		geom.computeVertexNormals();
+		geom.computeCentroids();
+		solid.add( new THREE.Mesh(geom,multipleMaterials));
+	}
 
-	geom.computeFaceNormals();
-	geom.computeVertexNormals()
-	geom.computeCentroids();
-	geom.computeVertexNormals();
 	
 	//return mesh
-	return new THREE.Mesh(geom,multipleMaterials);
+	return solid;
 
 }
 
@@ -133,7 +155,7 @@ function interpretFace(f) {
 	function makeColor(rgba) {
 		return new THREE.Color("rgba(" + rgba.join(',') + ")");
 	}
-	if (f.length !== 11 && f.length !== 14) {
+	if (f.length !== 12 && f.length !== 15) {
 		throw 'face does not have proper number of elemens. f:' + f;
 	}
 	//interpret face from json
@@ -147,9 +169,11 @@ function interpretFace(f) {
 		lmapUvMults : [f[6],f[7],f[8],f[9]],
 		
 		materialIdx: f[10],
+
+		cellIdx: f[11],
 		
-		vertexColors: f.length > 11 ? 
-			[makeColor(f[11]),makeColor(f[12]),makeColor(f[13])] :
+		vertexColors: f.length > 12 ? 
+			[makeColor(f[12]),makeColor(f[13]),makeColor(f[14])] :
 			undefined,
 
 		normal: new THREE.Vector3(0,0,0)	//TODO
