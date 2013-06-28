@@ -5,7 +5,7 @@ var startPoint = {
 	z:318,
 }
 
-var scn, cameraControls, renderer, scncs
+var scn, cameraControls, renderer, scncs;
 var clock = new THREE.Clock();
 
 if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
@@ -54,13 +54,24 @@ function animate() {new THREE.PerspectiveCamera( 75, window.innerWidth/window.in
 	stats.update();
 }
 
+var _previous_cell,_cur_cell;
+
 function render() {
 	var delta = clock.getDelta();
 	cameraControls.update(delta);
 	//cameraControls.isOnObject( true );
 
-	setScnVisibility();
-	cameraCull();
+	// _cur_cell = scncs.getCellIdxAtPos(camera.position);
+
+	// if (_cur_cell >= 0 && _cur_cell !== _previous_cell) {
+	// 	console.log('Location: ' + scncs.cells[_cur_cell].name);
+	// 	_previous_cell = _cur_cell;
+	// }
+
+	// setScnVisibility();
+	// scncs.update(camera.position);
+
+	// cameraCull();
 	renderer.render(scene, camera);
 }
 
@@ -92,7 +103,7 @@ $.getJSON("./res/" + MAP + ".json", function(scndata) {
 
 	scene.add(scn);
 
-	scncs = new CellSystem(scndata);
+	scncs = new CellSystem(scn,scndata);
 	scene.add(scncs.obj);
 
 	//create skybox

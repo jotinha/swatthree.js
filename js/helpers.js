@@ -43,7 +43,7 @@ var setScnVisibility = function() {
 			var solid = scn.children[c];
 		
 			if (solid._scn_classname === 'worldspawn') {
-				setVisible(solid,visControl.worldspawn);
+				// setVisible(solid,visControl.worldspawn);
 			
 			} else if (solid._scn_classname === 'door') {
 				setVisible(solid,visControl.doors);
