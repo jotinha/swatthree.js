@@ -211,10 +211,12 @@ function createUV(uvlist,uvidx,mults) {
 var _iterateAllScnMaterials = function(callback) {
 	
 	for (var c=0; c < scn.children.length; c++) {
-		var solid = scn.children[c];
-		if (solid.material instanceof THREE.MeshFaceMaterial) {
-			for (var m = 0; m < solid.material.materials.length; m++) {
-				var material = solid.material.materials[m];
+		//because the material is shared between all cells in the solid,
+		// we must only apply function to one of the cells
+		var cell = scn.children[c].children[0];
+		if (cell.material instanceof THREE.MeshFaceMaterial) {
+			for (var m = 0; m < cell.material.materials.length; m++) {
+				var material = cell.material.materials[m];
 				callback(material);
 
 				material.needsUpdate = true;

@@ -29,21 +29,28 @@ function initGUI() {
 
 var setScnVisibility = function() {
 
+	var setVisible = function(obj,bool) {
+		obj.traverse(function (c) {
+			c._visible_old = c.visible;
+			c.visible = bool;
+		});
+	};
+
 	if (scn) {
 		for (var c = 0; c < scn.children.length; c++) {
 			var solid = scn.children[c];
 		
 			if (solid._scn_classname === 'worldspawn') {
-				solid.visible = visControl.worldspawn;
+				setVisible(solid,visControl.worldspawn);
 			
 			} else if (solid._scn_classname === 'door') {
-				solid.visible = visControl.doors;
+				setVisible(solid,visControl.doors);
 
 			} else if (solid._scn_classname === 'trigger') {
-				solid.visible = visControl.triggers;
+				setVisible(solid,visControl.triggers);
 
 			} else {
-				solid.visible = visControl.others;
+				setVisible(solid,visControl.others);
 
 			}			
 
