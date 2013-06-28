@@ -27,14 +27,16 @@ function initGUI() {
 	return gui;
 }
 
+var setVisible = function(obj,bool) {
+	obj.traverse(function (c) {
+		c._visible_old = c.visible;
+		c.visible = bool;
+	});
+};
+
 var setScnVisibility = function() {
 
-	var setVisible = function(obj,bool) {
-		obj.traverse(function (c) {
-			c._visible_old = c.visible;
-			c.visible = bool;
-		});
-	};
+
 
 	if (scn) {
 		for (var c = 0; c < scn.children.length; c++) {
