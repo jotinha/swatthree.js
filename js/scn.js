@@ -142,6 +142,7 @@ function createSolid(data,textures,lightmaps) {
 		geom.computeFaceNormals();
 		geom.computeVertexNormals();
 		geom.computeCentroids();
+		geom.computeBoundingBox()
 		solid.add( new THREE.Mesh(geom,multipleMaterials));
 	}
 
@@ -230,3 +231,4 @@ var _iterateAllScnMaterials = function(callback) {
 		
 	}
 };
+

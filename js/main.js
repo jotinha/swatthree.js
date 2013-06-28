@@ -60,8 +60,23 @@ function render() {
 	//cameraControls.isOnObject( true );
 
 	setScnVisibility();
+	cameraCull();
 	renderer.render(scene, camera);
 }
+
+var frustum = new THREE.Frustum();
+
+function cameraCull() {
+	frustum.setFromMatrix( new THREE.Matrix4().multiplyMatrices( camera.projectionMatrix, camera.matrixWorldInverse ) );
+	
+	var worldspawn = scn.children[0];
+
+ 	for (var ic = 0; ic < worldspawn.children.length; ic ++) {
+ 		var cell = worldspawn.children[ic];
+ 		cell.visible = visControl.worldspawn && frustum.intersectsObject( cell ) ;
+	}
+};
+
 
 $.getJSON("./res/" + MAP + ".json", function(scndata) {
 
