@@ -225,7 +225,7 @@ var _iterateAllScnMaterials = function(callback) {
 			}
 
 		} else {
-			throw ("expected material of type MeshFaceMaterial");
+			throw "expected material of type MeshFaceMaterial";
 		}
 
 		

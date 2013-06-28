@@ -5,7 +5,7 @@ var startPoint = {
 	z:318,
 }
 
-var scn, cameraControls, renderer
+var scn, cameraControls, renderer, scncs
 var clock = new THREE.Clock();
 
 if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
@@ -67,14 +67,14 @@ function render() {
 var frustum = new THREE.Frustum();
 
 function cameraCull() {
-	frustum.setFromMatrix( new THREE.Matrix4().multiplyMatrices( camera.projectionMatrix, camera.matrixWorldInverse ) );
+	// frustum.setFromMatrix( new THREE.Matrix4().multiplyMatrices( camera.projectionMatrix, camera.matrixWorldInverse ) );
 	
-	var worldspawn = scn.children[0];
+	// var worldspawn = scn.children[0];
 
- 	for (var ic = 0; ic < worldspawn.children.length; ic ++) {
- 		var cell = worldspawn.children[ic];
- 		cell.visible = visControl.worldspawn && frustum.intersectsObject( cell ) ;
-	}
+ // 	for (var ic = 0; ic < worldspawn.children.length; ic ++) {
+ // 		var cell = worldspawn.children[ic];
+ // 		cell.visible = visControl.worldspawn && frustum.intersectsObject( cell ) ;
+	// }
 };
 
 
@@ -91,6 +91,9 @@ $.getJSON("./res/" + MAP + ".json", function(scndata) {
 	}
 
 	scene.add(scn);
+
+	scncs = new CellSystem(scndata);
+	scene.add(scncs.obj);
 
 	//create skybox
 	scene.add(
