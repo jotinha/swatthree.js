@@ -1,4 +1,4 @@
-var MAP = 'missiona'
+var MAP = 'missioni'
 var startPoint = {
 	x:91,
 	y:48,
@@ -69,7 +69,7 @@ function render() {
 	// }
 
 	// setScnVisibility();
-	// scncs.update(camera.position);
+	scncs.update(cameraControls.getObject().position,camera);
 
 	// cameraCull();
 	renderer.render(scene, camera);
