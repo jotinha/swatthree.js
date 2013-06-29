@@ -1,4 +1,4 @@
-var MAP = 'missioni'
+var MAP = 'missiona'
 var startPoint = {
 	x:91,
 	y:48,
