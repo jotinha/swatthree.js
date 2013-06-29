@@ -58,7 +58,7 @@ CellSystem.prototype = {
 				
 				var frustum = _getUpdatedFrustum(camera);				
 				
-				curCell.setVisibilityOfNeighborCells(frustum);
+				curCell.setVisibilityOfNeighborCells(frustum,cameraPosition);
 
 				_debugText = ci + ': ' + curCell.name + '<br>';
 			}
@@ -69,7 +69,7 @@ CellSystem.prototype = {
 };
 
 var _getUpdatedFrustum = function() {
-		var frustum = new THREE.Frustum();
+		var frustum = new THREE.FrustumN();
 		var mat = new THREE.Matrix4();
 
 		return function(camera) {
@@ -79,9 +79,32 @@ var _getUpdatedFrustum = function() {
 
 }(); 
 
-var _createFrustumPassingPortal = function(camera,portal) {
-}(); 
+var _createFrustumThroughPolygon = function(origin,vertices,plane) {
 
+	var n_verts = vertices.length;
+
+	// 1,1,... is a hack so frustum does not init Plane() 6 times
+	//we do that in the for loop below
+	var frustum =  new THREE.FrustumN(1,1,1,1,1,1); 
+	
+	frustum.planes = [];
+	for (var i=0; i < n_verts; i++) {
+		var plane = new THREE.Plane();
+		plane.setFromCoplanarPoints(
+			vertices[i],
+			i < n_verts - 1 ? vertices[i+1] : vertices[0],
+			origin)
+		frustum.planes.push(plane);
+	}
+
+	//now add near plane (plane of polygon)
+	frustum.planes.push( plane );
+
+	//far plane
+	frustum.planes.push();
+	
+	return frustum;
+};
 
 //-------------------------------------------------------------------
 var csCell = function (idx,parent,cellData,mesh) {
@@ -105,7 +128,7 @@ csCell.prototype = {
 		return this.mesh.visible;
 	},
 
-	setVisibilityOfNeighborCells: function(frustum) {
+	setVisibilityOfNeighborCells: function(frustum,origin) {
 		for (var i=0; i < this.portals.length; i++) {
 			var portal = this.portals[i];
 			
@@ -116,14 +139,13 @@ csCell.prototype = {
 				//if it is already visible, skip
 				if (!nextCell.isVisible() && portal.isInsideFrustum(frustum)) {
 					nextCell.setVisible(true);
-					//nextCell.setVisibilityOfNeighborCells(!!!!);
+					nextCell.setVisibilityOfNeighborCells(
+						_createFrustumThroughPolygon(origin,portal.polygonVertices,portal.polygonPlane),
+						origin
+					);
 				}
 			}
 		}
-	},
-
-	computeFrustumPassingPortal: function(camera,portal) {
-
 	},
 
 }
@@ -164,25 +186,34 @@ var csPortal = function(parent,portalData) {
 	this.mesh.localToWorld(this.aabb.min);
 	this.mesh.localToWorld(this.aabb.max);
 
-	
+	//add portal polygon (not bbox) vertices
+	//in world coordinates
+	this.polygonVertices = [];
+	for (var i = 0; i < portalData.verts.length; i++) {
+		this.polygonVertices.push( readVertex(portalData.verts[i]));
+	}
 
+	this.polygonPlane = readPlane(portalData.plane);
 };
 
-csPortal.prototype.setNextCell = function(cell) {
-	if (this.nextCellIdx == -1) { //means what?
-		this.nextCell = undefined;
-	}
-	else if (cell.idx !== this.nextCellIdx) {
-		throw ("cell.idx doesn't match. Are you sure its the actual nextCell?");
-	}
-	else {
-		this.nextCell = cell;
-	}
-};
+csPortal.prototype = {
 
-csPortal.prototype.isInsideFrustum = function(frustum) {
-	//TODO: patch frustrum with intersectsAABB
-	return frustrumIntersectsAABB( frustum, this.aabb );
+	setNextCell: function(cell) {
+		if (this.nextCellIdx == -1) { //means what?
+			this.nextCell = undefined;
+		}
+		else if (cell.idx !== this.nextCellIdx) {
+			throw ("cell.idx doesn't match. Are you sure its the actual nextCell?");
+		}
+		else {
+			this.nextCell = cell;
+		}
+	},
+
+	isInsideFrustum : function(frustum) {
+		//TODO: patch frustrum with intersectsAABB
+		return frustrumIntersectsAABB( frustum, this.aabb );
+	},
 };
 	
 
@@ -231,7 +262,7 @@ var frustrumIntersectsAABB = function() {
 
 	return function(frustum,aabb) {
 
-		for ( var i = 0; i < 6; i ++ ) {
+		for ( var i = 0; i < frustum.planes.length; i ++ ) {
 			var plane = frustum.planes[i];
 			p1.x = plane.normal.x > 0 ? aabb.min.x : aabb.max.x;
 			p2.x = plane.normal.x > 0 ? aabb.max.x : aabb.min.x;

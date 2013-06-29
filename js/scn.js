@@ -182,6 +182,15 @@ function interpretFace(f) {
 	}
 }
 
+function readVertex(v) {
+	return new THREE.Vector3(v[0],v[1],-v[2]);
+}
+
+function readPlane(p) {
+	return new THREE.Plane(readVertex(p),p[3]);
+}
+
+
 function createTexture(path) {
 	//var tex = THREE.ImageUtils.loadTexture()
 	var img = new Image();
