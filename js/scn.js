@@ -29,6 +29,9 @@ function createSolid(data,textures,lightmaps) {
 	var geom;
 	var n_cells = data.cells.length || 1;
 
+	var solid = new THREE.Object3D();
+
+
 	//create vertex list
 	var vertices = [];
 	for (var v=0; v < data.verts.length; v++) {
@@ -38,8 +41,9 @@ function createSolid(data,textures,lightmaps) {
 			-data.verts[v][2]
 			));
 	}
-
-	//one mesh and geometry per cell
+	solid._allVertices = vertices;
+ 
+ 	//one mesh and geometry per cell
 	var geoms = []
 	for (var icell=0; icell < n_cells; icell++) {
 		geom = new THREE.Geometry();
@@ -51,6 +55,7 @@ function createSolid(data,textures,lightmaps) {
 
 
 	//create faces
+	solid._allFaces = [];
 	for (var f=0; f < data.faces.length; f++) {
 		var face = interpretFace(data.faces[f]);
 		
@@ -59,15 +64,18 @@ function createSolid(data,textures,lightmaps) {
 
 		geom = geoms[cidx];
 
-		geom.faces.push( new THREE.Face3(
+		var theface =  new THREE.Face3(
 			face.vertIdxs[0],
 			face.vertIdxs[1],
 			face.vertIdxs[2],
 			face.normal,
 			face.vertexColors,
 			face.materialIdx
-			));
+			);
 
+		solid._allFaces.push(theface);	//keep a reference here too
+		
+		geom.faces.push(theface);
 		geom.faceVertexUvs[0].push(
 			[
 				createUV(data.uvs,face.uvIdxs[0]),
@@ -136,7 +144,6 @@ function createSolid(data,textures,lightmaps) {
 
 	
 	//one mesh per cell
-	var solid = new THREE.Object3D();
 	for (var icell=0; icell < n_cells; icell++) {
 		geom = geoms[icell];
 		geom.computeFaceNormals();
@@ -189,6 +196,17 @@ function readVertex(v) {
 function readPlane(p) {
 	return new THREE.Plane(readVertex(p),p[3]);
 }
+
+function readBBox(data) {
+	var min = readVertex(data[0]);
+	var max = readVertex(data[1]);
+	//actually, we have to invert swap the z component because we changed signs
+	var tmp = min.z;
+	min.z = max.z;
+	max.z = tmp;
+	return new THREE.Box3(min,max);
+}
+
 
 
 function createTexture(path) {

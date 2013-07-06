@@ -49,6 +49,8 @@ scene.add(ambientLight);
 function animate() {new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 10, 100000 );
 	window.requestAnimationFrame(animate);
 
+	
+
 	render();
 
 	stats.update();
@@ -70,23 +72,17 @@ function render() {
 
 	// setScnVisibility();
 	scncs.update(cameraControls.getObject().position,camera);
+	if (camera === camera2) {
+		if (scncs.isColliding) {
+			cameraControls.update(-delta);
+		}
+	}
 
 	// cameraCull();
 	renderer.render(scene, camera);
 }
 
 var frustum = new THREE.Frustum();
-
-function cameraCull() {
-	// frustum.setFromMatrix( new THREE.Matrix4().multiplyMatrices( camera.projectionMatrix, camera.matrixWorldInverse ) );
-	
-	// var worldspawn = scn.children[0];
-
- // 	for (var ic = 0; ic < worldspawn.children.length; ic ++) {
- // 		var cell = worldspawn.children[ic];
- // 		cell.visible = visControl.worldspawn && frustum.intersectsObject( cell ) ;
-	// }
-};
 
 
 $.getJSON("./res/" + MAP + ".json", function(scndata) {
@@ -104,7 +100,12 @@ $.getJSON("./res/" + MAP + ".json", function(scndata) {
 	scene.add(scn);
 
 	scncs = new CellSystem(scn,scndata);
+
 	scene.add(scncs.obj);
+
+	scene.add(BVHMESHES);
+
+	//scene.add(drawAllCellsBBoxes(scndata));
 
 	//create skybox
 	scene.add(

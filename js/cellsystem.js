@@ -27,18 +27,23 @@ var CellSystem = function(scn,scnData) {
 
 	this.cellMeshes = scn.children[0].children;
 
+	this.collider = new Collider(scnData.solids[0],scn.children[0]);
+
 
 };
 
 
 CellSystem.prototype = {
 	getCellAtPos: function(pos) {
-			var ci = this.bsp.getNodeAtPos(pos).cell;
-			return this.cells[ci];
+			var node = this.bsp.getNodeAtPos(pos);  //may return false if checking for collision
+			if (node && node.cell >= 0) {
+				return this.cells[node.cell];		
+			}
 		},
 
 	getCellIdxAtPos: function(pos) {
-			return this.bsp.getNodeAtPos(pos).cell;
+			var node = this.bsp.getNodeAtPos(pos);
+			return node ? node.cell : -1;
 		},
 
 	update: function(cameraPosition,camera) {
@@ -62,8 +67,11 @@ CellSystem.prototype = {
 
 				_debugText = ci + ': ' + curCell.name + '<br>';
 			}
+			this.isColliding = this.collider.checkCollision(cameraPosition,10,ci);
 
-			$('#debugInfo').html(_debugText);	
+			$('#debugInfo').html(_debugText + '<br>Is colliding? ' + this.isColliding);	
+
+
 		},
 
 };
@@ -241,19 +249,28 @@ var BspTree = function(nodesData,planesData) {
 	
 }	
 
-BspTree.prototype.getNodeAtPos = function(pos,startNode) {
+BspTree.prototype.getNodeAtPos = function(pos,startNode,sphereRadius,faceList) {
 	var node = startNode || this.root ;
+	var radius = sphereRadius || 0;
+	var nn;
 
 	if (node.plane === undefined) {
 		return node;
 	} else {
-		var nextNode = this.nodes[ node.plane.distanceToPoint(pos) >= 0 ? 
-									node.node1 :
-									node.node2 ];
+		var d = node.plane.distanceToPoint(pos);
+		if (d >= radius ) {
+			nn = node.node1;
+		} else if (d < -radius) {
+			nn = node.node2;
+		} else { //we may be colling, check
+			// if sphereIntersectsFaceList(pos,radius,faceList,node.faceIdxs) {
+			// 	return false; //intersection found, abort checking
+			// }
+		}
+		var nextNode = this.nodes[ nn ];
 		return this.getNodeAtPos(pos, nextNode);
 	}
 };
-
 
 var frustrumIntersectsAABB = function() {
 	//based on http://stackoverflow.com/questions/9187871/frustum-culling-when-bounding-box-is-really-big?rq=1
@@ -285,3 +302,4 @@ var frustrumIntersectsAABB = function() {
 		return true;
 	}
 }();
+
