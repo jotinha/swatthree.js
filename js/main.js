@@ -70,7 +70,7 @@ function render() {
 	// 	_previous_cell = _cur_cell;
 	// }
 
-	// setScnVisibility();
+	setScnVisibility();
 	scncs.update(cameraControls.getObject().position,camera);
 	if (camera === camera2) {
 		if (scncs.isColliding) {

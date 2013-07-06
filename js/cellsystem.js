@@ -20,7 +20,7 @@ var CellSystem = function(scn,scnData) {
 	//create object3D
 	this.obj = new THREE.Object3D();
 	for (var i=0; i < this.portals.length; i++) {
-		this.obj.add(this.portals[i].mesh);
+		this.obj.add(this.portals[i].polygon);
 	};
 
 	this.bsp = new BspTree(scnData.solids[0].nodes,scnData.solids[0].planes);
@@ -202,6 +202,23 @@ var csPortal = function(parent,portalData) {
 	}
 
 	this.polygonPlane = readPlane(portalData.plane);
+
+	var geom = new THREE.Geometry();
+	geom.vertices = this.polygonVertices;
+	geom.faces.push( new THREE.Face4(0,1,2,3));
+	
+	//the portal polygons are actually looking away, fix that
+	this.polygon = new THREE.Mesh(
+		geom,
+		new THREE.MeshBasicMaterial({
+			color: 0x00ff00,
+			transparent: true,
+			opacity: 0.5,
+			side: THREE.BackSide,
+		})		
+		);
+	//this.polygon.visible = false;
+
 };
 
 csPortal.prototype = {
@@ -302,4 +319,22 @@ var frustrumIntersectsAABB = function() {
 		return true;
 	}
 }();
+
+
+// var frustumClipAABB = function() {
+// 	var p1 = new THREE.Vector3(),
+// 		p2 = new THREE.Vector3();
+
+// 	return function (frustum, aabb){
+// 		for ( var i = 0; i < frustum.planes.length; i ++ ) {
+// 			var plane = frustum.planes[i];
+// 			p1.x = plane.normal.x > 0 ? aabb.min.x : aabb.max.x;
+// 			p2.x = plane.normal.x > 0 ? aabb.max.x : aabb.min.x;
+// 			p1.y = plane.normal.y > 0 ? aabb.min.y : aabb.max.y;
+// 			p2.y = plane.normal.y > 0 ? aabb.max.y : aabb.min.y;
+// 			p1.z = plane.normal.z > 0 ? aabb.min.z : aabb.max.z;
+// 			p2.z = plane.normal.z > 0 ? aabb.max.z : aabb.min.z;
+
+// 	}
+// }
 
