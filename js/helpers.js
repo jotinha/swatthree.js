@@ -4,6 +4,7 @@ var visControl = {
 	triggers: false,
 	others: true,
 	lightmaps: true,
+	portals: false,
 	fpview: function() {},
 	about: function() {$('#about').toggle();}
 };
@@ -15,6 +16,7 @@ function initGUI() {
 	show.add(visControl,"worldspawn");
 	show.add(visControl,"doors");
 	show.add(visControl,"triggers");
+	show.add(visControl,"portals");
 	show.add(visControl,"others");
 	
 	show.add(visControl,"lightmaps")
@@ -32,21 +34,27 @@ var setScnVisibility = function() {
 	if (scn) {
 		for (var c = 0; c < scn.children.length; c++) {
 			var solid = scn.children[c];
-		
+			
+			var isVisible;
 			if (solid._scn_classname === 'worldspawn') {
-				solid.visible = visControl.worldspawn;
+				isVisible = visControl.worldspawn;
 			
 			} else if (solid._scn_classname === 'door') {
-				solid.visible = visControl.doors;
+				isVisible = visControl.doors;
 
 			} else if (solid._scn_classname === 'trigger') {
-				solid.visible = visControl.triggers;
+				isVisible = visControl.triggers;
+
+			} else if (solid.name === 'portals') {
+				isVisible = visControl.portals;
 
 			} else {
-				solid.visible = visControl.others;
+				isVisible = visControl.others;
 
 			}			
 
+			solid.visible = isVisible;		// it does not descend down into the children
+			solid.traverse( function(child) { child.visible = isVisible; })	//we must use this
 		}
 		
 	}

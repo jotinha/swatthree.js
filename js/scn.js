@@ -19,39 +19,66 @@ function createScn(scndata) {
 		scnObj.add(solidMesh);s
 	}
 
+	// load Portals
+	scnObj.add( loadPortals(scndata) );
+
 	return scnObj;
 
 }
 
 
 function createSolid(data,textures,lightmaps) {
-	
-	var geom = new THREE.Geometry();
+
+	var geom;
+	var n_cells = data.cells.length || 1;
+
+	var solid = new THREE.Object3D();
+
 
 	//create vertex list
+	var vertices = [];
 	for (var v=0; v < data.verts.length; v++) {
-		geom.vertices.push( new THREE.Vector3(
+		vertices.push( new THREE.Vector3(
 			data.verts[v][0],
 			data.verts[v][1],
 			-data.verts[v][2]
 			));
 	}
+	solid._allVertices = vertices;
+ 
+ 	//one mesh and geometry per cell
+	var geoms = []
+	for (var icell=0; icell < n_cells; icell++) {
+		geom = new THREE.Geometry();
+		geom.vertices = vertices;
+		geom.faceVertexUvs = [[],[]];		//2 sets of uv's
 
-	geom.faceVertexUvs = [[],[]];		//2 sets of uv's
+		geoms.push(geom);
+	}
+
 
 	//create faces
+	solid._allFaces = [];
 	for (var f=0; f < data.faces.length; f++) {
 		var face = interpretFace(data.faces[f]);
+		
+		//select the appropriate cell
+		var cidx = face.cellIdx >= 0 ? face.cellIdx : 0;
 
-		geom.faces.push( new THREE.Face3(
+		geom = geoms[cidx];
+
+		var theface =  new THREE.Face3(
 			face.vertIdxs[0],
 			face.vertIdxs[1],
 			face.vertIdxs[2],
 			face.normal,
 			face.vertexColors,
 			face.materialIdx
-			));
+			);
 
+		solid._allFaces.push(theface);	//keep a reference here too
+		
+		geom.faces.push(theface);
 		geom.faceVertexUvs[0].push(
 			[
 				createUV(data.uvs,face.uvIdxs[0]),
@@ -118,14 +145,20 @@ function createSolid(data,textures,lightmaps) {
 	}
 	var multipleMaterials = new THREE.MeshFaceMaterial(materials);
 
+	
+	//one mesh per cell
+	for (var icell=0; icell < n_cells; icell++) {
+		geom = geoms[icell];
+		geom.computeFaceNormals();
+		geom.computeVertexNormals();
+		geom.computeCentroids();
+		geom.computeBoundingBox()
+		solid.add( new THREE.Mesh(geom,multipleMaterials));
+	}
 
-	geom.computeFaceNormals();
-	geom.computeVertexNormals()
-	geom.computeCentroids();
-	geom.computeVertexNormals();
 	
 	//return mesh
-	return new THREE.Mesh(geom,multipleMaterials);
+	return solid;
 
 }
 
@@ -133,7 +166,7 @@ function interpretFace(f) {
 	function makeColor(rgba) {
 		return new THREE.Color("rgba(" + rgba.join(',') + ")");
 	}
-	if (f.length !== 11 && f.length !== 14) {
+	if (f.length !== 12 && f.length !== 15) {
 		throw 'face does not have proper number of elemens. f:' + f;
 	}
 	//interpret face from json
@@ -147,15 +180,51 @@ function interpretFace(f) {
 		lmapUvMults : [f[6],f[7],f[8],f[9]],
 		
 		materialIdx: f[10],
+
+		cellIdx: f[11],
 		
-		vertexColors: f.length > 11 ? 
-			[makeColor(f[11]),makeColor(f[12]),makeColor(f[13])] :
+		vertexColors: f.length > 12 ? 
+			[makeColor(f[12]),makeColor(f[13]),makeColor(f[14])] :
 			undefined,
 
 		normal: new THREE.Vector3(0,0,0)	//TODO
 
 	}
 }
+
+function readVertex(v) {
+	return new THREE.Vector3(v[0],v[1],-v[2]);
+}
+
+function readVertices(l) {
+	var vertices = [];
+	for (var i=0; i < l.length; i++) {
+		vertices.push(readVertex(l[i]));
+	}
+	return vertices;
+}
+
+function readVerticesInto(data,list) {
+	for (var i=0; i < data.length; i++) {
+		list.push(readVertex(data[i]));
+	}
+}
+
+function readPlane(p) {
+	return new THREE.Plane(readVertex(p),p[3]);
+}
+
+function readBBox(data) {
+	var min = readVertex(data[0]);
+	var max = readVertex(data[1]);
+	//actually, we have to invert swap the z component because we changed signs
+	var tmp = min.z;
+	min.z = max.z;
+	max.z = tmp;
+	return new THREE.Box3(min,max);
+}
+
+
 
 function createTexture(path) {
 	//var tex = THREE.ImageUtils.loadTexture()
@@ -187,10 +256,12 @@ function createUV(uvlist,uvidx,mults) {
 var _iterateAllScnMaterials = function(callback) {
 	
 	for (var c=0; c < scn.children.length; c++) {
-		var solid = scn.children[c];
-		if (solid.material instanceof THREE.MeshFaceMaterial) {
-			for (var m = 0; m < solid.material.materials.length; m++) {
-				var material = solid.material.materials[m];
+		//because the material is shared between all cells in the solid,
+		// we must only apply function to one of the cells
+		var cell = scn.children[c].children[0];
+		if (cell.material instanceof THREE.MeshFaceMaterial) {
+			for (var m = 0; m < cell.material.materials.length; m++) {
+				var material = cell.material.materials[m];
 				callback(material);
 
 				material.needsUpdate = true;
@@ -198,9 +269,10 @@ var _iterateAllScnMaterials = function(callback) {
 			}
 
 		} else {
-			throw ("expected material of type MeshFaceMaterial");
+			throw "expected material of type MeshFaceMaterial";
 		}
 
 		
 	}
 };
+
