@@ -16,8 +16,10 @@ function createScn(scndata) {
 
 	for (var s=0; s < scndata.solids.length; s++) {
 		var solidMesh = createSolid(scndata.solids[s],textures,lightmaps);
-		scnObj.add(solidMesh);s
+		scnObj.add(solidMesh);
 	}
+
+	scnObj._n_solids = scnObj.children.length;
 
 	// load Portals
 	scnObj.add( loadPortals(scndata) );
@@ -255,7 +257,7 @@ function createUV(uvlist,uvidx,mults) {
 
 var _iterateAllScnMaterials = function(callback) {
 	
-	for (var c=0; c < scn.children.length; c++) {
+	for (var c=0; c < scn._n_solids; c++) {
 		//because the material is shared between all cells in the solid,
 		// we must only apply function to one of the cells
 		var cell = scn.children[c].children[0];
