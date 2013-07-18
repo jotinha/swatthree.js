@@ -207,6 +207,9 @@ function readBBox(data) {
 	return new THREE.Box3(min,max);
 }
 
+function readPlane(data) {
+	return new THREE.Plane(readVertex(data),data[3]);
+}
 
 
 function createTexture(path) {
