@@ -49,8 +49,8 @@ var Collider = function(solidData,solidObj) {
 
 		if (checkCollision_BBox_Cube(node.bbox,pos,radius)) {
 			// if (node.faceIdxs.length > 0 && 
-			// 	sphereIntersectsFaceList(pos,radius,node.faceIdxs,faceList,vertexList)) {
-			// 	return true;
+			// 	sphereIntersectsFaces(pos,radius,node.faceIdxs,faceList,vertexList)) {
+			//  	return true;
 			// } 
 			if (node.children.length == 0) { 
 				// node.mesh.visible = true;
@@ -68,7 +68,35 @@ var Collider = function(solidData,solidObj) {
 		return false;
 
 	}
-}
+
+	this.checkCollisionLine = function(line,cellIdx,startNode) {
+	
+		if (!(cellIdx >= 0)) return true;
+			
+		var node = startNode || roots[cellIdx];
+
+		if (checkCollision_BBox_Cube(node.bbox,pos)) {
+			// if (node.faceIdxs.length > 0 && 
+			// 	sphereIntersectsFaces(pos,radius,node.faceIdxs,faceList,vertexList)) {
+			//  	return true;
+			// } 
+			if (node.children.length == 0) { 
+				// node.mesh.visible = true;
+				return true;
+			}
+
+			for (var i = 0; i < node.children.length; i++) {
+				if (this.checkCollision(pos,radius,cellIdx,node.children[i])) {
+					return true;
+				}
+			}
+
+		}
+		// node.mesh.visible = false;
+		return false;
+
+	}
+};
 
 function checkCollision_BBox_BBox(a,b) {
 	return !(a.min.x > b.max.x || a.max.x < b.min.x ||
@@ -84,43 +112,116 @@ function checkCollision_BBox_Cube(bbox,cubeCenter,cubeHalfSize) {
 	return checkCollision_BBox_BBox(bbox,b);
 }
 
-var sphereIntersectsFaces = function(pos,radius,faceIdxs,faces,vertices) {
+function checkCollision_BBox_Line(box,line) {
+	return !(a.min.x > b.max.x || a.max.x < b.min.x ||
+		     a.min.y > b.max.y || a.max.y < b.min.y ||
+		     a.min.z > b.max.z || a.max.z < b.min.z);
+}
+
+
+var lineIntersectsFaces = function() {
+	var facePlane = new THREE.Plane();
+	var line = new THREE.Line3();
+
+	//assumes p0 is in positive half space and p1 may be in positive or negative
 	//expecting faces in faceList as Face3
-	var a,b,c;
+	return function(p0,p1,intersectPoint,faceIdxs,faces,vertices) {
+		var a,b,c,d;
 
-	var intersectPoint;
+		line.set(p0,p1);
 
-	for (var i=0; i < faceIdxs.length; i++) {
-		
-		var face = faces[faceIdxs[i]];
+		for (var i=0; i < faceIdxs.length; i++) {
+			
+			var face = faces[faceIdxs[i]];
 
-		//intersectPoint = ...; TODO
+			facePlane.setFromNormalAndCoplanarPoint(face.normal,vertices[face.a]);
 
-		if ( face instanceof THREE.Face3 ) {
+			if (!facePlane.isIntersectionLine(line)) return false;
+			
+			facePlane.intersectLine(intersectPoint);
 
-			a = vertices[ face.a ];
-			b = vertices[ face.b ];
-			c = vertices[ face.c ];
+			//shorten line (assumes p0 is in positive half space)
+			line.set(p0,intersectPoint);
+			
+			if ( face instanceof THREE.Face3 ) {
 
-		if ( THREE.Triangle.containsPoint( intersectPoint, a, b, c ) ) return true;
+				a = vertices[ face.a ];
+				b = vertices[ face.b ];
+				c = vertices[ face.c ];
 
-		} else if ( face instanceof THREE.Face4 ) {
+				if ( THREE.Triangle.containsPoint( intersectPoint, a, b, c ) ) return true;
 
-			a = vertices[ face.a ];
-			b = vertices[ face.b ];
-			c = vertices[ face.c ];
-			d = vertices[ face.d ];
+			} else if ( face instanceof THREE.Face4 ) {
 
-			if ( ( THREE.Triangle.containsPoint( intersectPoint, a, b, d ) ) ||
-				 (THREE.Triangle.containsPoint( intersectPoint, b, c, d ) ) ) return true;
+				a = vertices[ face.a ];
+				b = vertices[ face.b ];
+				c = vertices[ face.c ];
+				d = vertices[ face.d ];
 
-		} else {
+				if ( ( THREE.Triangle.containsPoint( intersectPoint, a, b, d ) ) ||
+					 (THREE.Triangle.containsPoint( intersectPoint, b, c, d ) ) ) return true;
 
-			// This is added because if we call out of this if/else group when none of the cases
-			//    match it will add a point to the intersection list erroneously.
-			throw Error( "face type not supported" );
+			} else {
 
+				// This is added because if we call out of this if/else group when none of the cases
+				//    match it will add a point to the intersection list erroneously.
+				throw Error( "face type not supported" );
+
+			}
 		}
+		return false;
 	}
-	return false;
-};
+}();
+
+
+
+var sphereIntersectsFaces = function() {
+	var facePlane = new THREE.Plane();
+
+	return function(p0,p1,intersectPoint,faceIdxs,faces,vertices) {
+		//expecting faces in faceList as Face3
+		var a,b,c;
+
+		for (var i=0; i < faceIdxs.length; i++) {
+			
+			var face = faces[faceIdxs[i]];
+
+			// scn surface has plane index, we could be using that instead...
+			facePlane.setFromNormalAndCoplanarPoint(face.normal,face.centroid);
+
+			var d0 = facePlane.distanceToPoint(p0);
+			var d1 = facePlane.distanceToPoint(p1);
+
+			if ((d0 > 0 && d1 > 0) || (d0 < 0 && d1 <0)) return false;
+
+			intersectPoint.set(facePlane.normal).multiplyScalar(d);
+
+			if ( face instanceof THREE.Face3 ) {
+
+				a = vertices[ face.a ];
+				b = vertices[ face.b ];
+				c = vertices[ face.c ];
+
+				if ( THREE.Triangle.containsPoint( intersectPoint, a, b, c ) ) return true;
+
+			} else if ( face instanceof THREE.Face4 ) {
+
+				a = vertices[ face.a ];
+				b = vertices[ face.b ];
+				c = vertices[ face.c ];
+				d = vertices[ face.d ];
+
+				if ( ( THREE.Triangle.containsPoint( intersectPoint, a, b, d ) ) ||
+					 (THREE.Triangle.containsPoint( intersectPoint, b, c, d ) ) ) return true;
+
+			} else {
+
+				// This is added because if we call out of this if/else group when none of the cases
+				//    match it will add a point to the intersection list erroneously.
+				throw Error( "face type not supported" );
+
+			}
+		}
+		return false;
+	}
+}();

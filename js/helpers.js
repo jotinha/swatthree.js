@@ -74,4 +74,46 @@ var setScnLMapsVisibility = function(visible) {
 	});
 }
 
+var guiDrawPortalsProj = function() {
 
+	$('#hud').empty();
+
+	var halfWidth = renderer.domElement.width*0.5;
+	var halfHeight = renderer.domElement.height*0.5;
+
+	for (var i= 0; i < PROJPORTALS.length; i++ ) {
+		var pp = PROJPORTALS[i];
+	
+		var x0 = (pp.box.min.x + 1)*halfWidth;
+		var x1 = (pp.box.max.x + 1)*halfWidth;
+		
+		var y0 = (pp.box.min.y + 1)*halfHeight;
+		var y1 = (pp.box.max.y + 1)*halfHeight;
+
+		guiAddBox(x0,y0,x1,y1);
+		guiAddText(x0+5,y0+5,pp.ownerCell + ' -> ' + pp.nextCell);
+	}
+
+};
+
+var guiAddBox = function(x0,y0,x1,y1) {
+
+	jQuery('<div/>', {
+		class: 'hudbox',
+		style: 'left:' + x0 + 'px;' + 
+			   'bottom:' + y0 + 'px;' + 
+			   'width:' + (x1-x0) + 'px;' +
+			   'height:' + (y1 - y0) + 'px;',
+	}).appendTo('#hud');
+
+};
+
+var guiAddText = function(x0,y0,text) {
+
+	jQuery('<div/>', {
+		class: 'hudtext',
+		style: 'left:' + x0 + 'px;' + 
+			   'bottom:' + y0 + 'px;',
+	}).text(text).appendTo('#hud');
+
+};

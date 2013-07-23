@@ -1,3 +1,5 @@
+var PROJPORTALS = [];
+
 var CellSystem = function(scn,scnData) {
 	var cellsData = scnData.solids[0].cells;
 
@@ -34,19 +36,26 @@ var CellSystem = function(scn,scnData) {
 
 
 CellSystem.prototype = {
-	getCellAtPos: function(pos) {
-			var node = this.bsp.getNodeAtPos(pos);  //may return false if checking for collision
+	getCellAtPos: function(pos,sphereRadius) {
+			var node = this.bsp.getNodeAtPos(pos,sphereRadius);  //may return false if checking for collision
 			if (node && node.cell >= 0) {
 				return this.cells[node.cell];		
 			}
 		},
 
-	getCellIdxAtPos: function(pos) {
-			var node = this.bsp.getNodeAtPos(pos);
+	getCellIdxAtPos: function(pos,sphereRadius) {
+			var node = this.bsp.getNodeAtPos(pos,sphereRadius);
 			return node ? node.cell : -1;
 		},
 
-	update: function(cameraPosition,camera) {
+	update: function() {
+				
+		var viewProjectionMatrix = new THREE.Matrix4();
+
+		return function(cameraPosition,camera) {
+
+			PROJPORTALS = [];
+
 			// first set all cells invisible
 			for (var i=0; i < this.cells.length; i++) {
 				this.cells[i].setVisible(false);
@@ -61,18 +70,30 @@ CellSystem.prototype = {
 				var curCell = this.cells[ci];
 				curCell.setVisible(true);
 				
-				var frustum = _getUpdatedFrustum(camera);				
+				//var frustum = _getUpdatedFrustum(camera);				
+				//_updateFrustumMesh(frustum,cameraPosition)
+				//curCell.setVisibilityOfNeighborCells(frustum,cameraPosition);
 				
-				curCell.setVisibilityOfNeighborCells(frustum,cameraPosition);
+				var viewMatrix = camera.matrixWorldInverse.getInverse( camera.matrixWorld );
+				viewProjectionMatrix.multiplyMatrices( camera.projectionMatrix, viewMatrix);
+
+				curCell.setVisibilityOfNeighborCells_projMethod(cameraPosition,viewProjectionMatrix)
 
 				_debugText = ci + ': ' + curCell.name + '<br>';
+			
 			}
+
 			this.isColliding = this.collider.checkCollision(cameraPosition,10,ci);
+			this.isCollidingBSP = this.bsp.checkCollision(cameraPosition,10);
 
-			$('#debugInfo').html(_debugText + '<br>Is colliding? ' + this.isColliding);	
+			$('#debugInfo').html(_debugText +
+							'<br>Is colliding? ' +
+							'<br>BVH: ' + this.isColliding + 
+							'<br>BSP: ' + this.isCollidingBSP);
+ 
 
-
-		},
+		};
+	}(),
 
 };
 
@@ -82,10 +103,36 @@ var _getUpdatedFrustum = function() {
 
 		return function(camera) {
 			frustum.setFromMatrix(mat.multiplyMatrices( camera.projectionMatrix, camera.matrixWorldInverse ) );
+			frustum.planes[0].constant += 10;
+			frustum.planes[1].constant += 10;
+			frustum.planes[2].constant += 10;
+			frustum.planes[3].constant += 10;
 			return frustum;
 		}
 
 }(); 
+
+var _updateFrustumMesh = function() {
+
+	var obj = new THREE.Object3D();
+	
+	for (var i=0; i < 6; i++) {
+		var geom = new THREE.Geometry();
+		geom.vertices.push(new THREE.Vector3(0,0,0));
+		geom.vertices.push(new THREE.Vector3(0,0,0));
+		var line = new THREE.Line(geom);
+		obj.add(line);
+	};
+
+	return function(frustum,origin) {
+		for (var i=0; i <6; i++) {
+			var g = obj.children[i].geometry;
+			g.vertices[0].copy(origin);
+			g.vertices[1].copy(frustum.planes[i].coplanarPoint);
+		}
+	
+	}
+}();
 
 var _createFrustumThroughPolygon = function(origin,vertices,plane) {
 
@@ -102,7 +149,11 @@ var _createFrustumThroughPolygon = function(origin,vertices,plane) {
 			vertices[i],
 			i < n_verts - 1 ? vertices[i+1] : vertices[0],
 			origin)
+		//this order only works because polygon is facing AWAY from cell center
+
 		frustum.planes.push(plane);
+
+
 	}
 
 	//now add near plane (plane of polygon)
@@ -145,16 +196,70 @@ csCell.prototype = {
 				var nextCell = this.parentCS.cells[portal.nextCellIdx];
 				
 				//if it is already visible, skip
-				if (!nextCell.isVisible() && portal.isInsideFrustum(frustum)) {
+
+				if (!nextCell.isVisible() && portal.isFacingIn(origin) && portal.isInsideFrustum(frustum)) {
 					nextCell.setVisible(true);
 					nextCell.setVisibilityOfNeighborCells(
 						_createFrustumThroughPolygon(origin,portal.polygonVertices,portal.polygonPlane),
 						origin
 					);
 				}
+
+/*				if (!nextCell.isVisible()) {
+					var newFrustum = clipFrustumByAABB(frustum, origin, portal.aabb);
+					if (newFrustum) {
+						nextCell.setVisible(true);
+						nextCell.setVisibilityOfNeighborCells(newFrustum,origin);
+					}
+
+				}*/
 			}
 		}
 	},
+
+	setVisibilityOfNeighborCells_projMethod: function() {
+
+		var stdClipBox = new THREE.Box3( new THREE.Vector3( -1, -1, -1 ), new THREE.Vector3( 1, 1, 1 ) );
+
+		return function (origin,viewProjectionMatrix, clipBox) {
+
+			clipBox = clipBox || stdClipBox;
+
+
+			for (var i=0; i < this.portals.length; i++) {
+				var portal = this.portals[i];
+
+				if (portal.nextCellIdx <0 ) continue;
+
+				var nextCell = this.parentCS.cells[portal.nextCellIdx];
+
+				if (!nextCell.isVisible() && portal.isFacingIn(origin)) {
+
+					var portalBB = portal.projectAndClip(viewProjectionMatrix, clipBox);
+
+					if (portalBB !== null) {
+
+						PROJPORTALS.push({
+							box:portalBB.clone(),
+							ownerCell: this.name,
+							nextCell: nextCell.name,
+							});
+
+						nextCell.setVisible(true);
+
+						nextCell.setVisibilityOfNeighborCells_projMethod(origin,viewProjectionMatrix,portalBB);
+
+					}
+
+
+				}
+
+
+			}
+
+		};
+
+	}(),
 
 }
 
@@ -217,7 +322,15 @@ var csPortal = function(parent,portalData) {
 			side: THREE.BackSide,
 		})		
 		);
+
 	//this.polygon.visible = false;
+
+	this.plane = readPlane(portalData.plane);
+
+	this.screenCoords = [];
+	for (var i = 0; i < this.polygonVertices.length; i++) {
+		this.screenCoords.push( new THREE.Vector4() );
+	}
 
 };
 
@@ -239,6 +352,64 @@ csPortal.prototype = {
 		//TODO: patch frustrum with intersectsAABB
 		return frustrumIntersectsAABB( frustum, this.aabb );
 	},
+
+	isFacingIn : function(origin)  { 
+		//the portal plane faces INTO the cell they belong to
+		// (I think the polygon faces AWAY but I must check)
+		return this.plane.distanceToPoint(origin) >= 0;
+
+	},
+
+	projectAndClip: function() {
+
+		var BB = new THREE.Box3();
+
+		return function (projMatrix,clipBox) {
+
+			var portal = this;
+			var v1,v2,v3;
+			var polyVisible = false;
+
+			for ( var j = 0; j < portal.polygonVertices.length; j ++ ) {
+
+				var pp = projectPoint(portal.polygonVertices[j], projMatrix, portal.screenCoords[j] );
+
+				// var w = pp.w;
+				// polyVisible = polyVisible || !(pp.x  < -w || pp.x > w || pp.y < -w || pp.y > w || pp.z < -w || pp.z > w);
+
+				// if ( j == 0) { v1 = pp; }
+				// else if (j == 1) { v2 = pp; }
+				// else { 
+				// 	v3 = pp;
+				// 	polyVisible = polyVisible || ((v3.x - v1.x)*(v2.y - v1.y) - (v3.y - v1.y)*(v2.x - v1.x)) > 0;
+				// }
+
+			}
+
+			// if (!polyVisible) return null;
+
+			BB.setFromPoints(portal.screenCoords);
+		
+			if (clipBox.isIntersectionBox( BB )) {
+				
+				BB.intersect( clipBox );
+
+				//but keep z coordinates
+				BB.min.z = clipBox.min.z;	//which should be -1
+				BB.max.z = clipBox.max.z;	//which should be 1
+
+				return BB.clone();
+
+			} else {
+
+				return null;
+
+			}
+
+		};
+
+	}(),
+
 };
 	
 
@@ -259,35 +430,58 @@ var BspTree = function(nodesData,planesData) {
 			node2 : n[2],
 			cell : n[3],
 			plane : n[4] >= 0 ? planes[n[4]] : undefined,
-		});
+			isLeaf: n[4] < 0,
+			isSolid: n[4] < 0 && n[3] === -1,
+		})
 	}
 	this.n_nodes = this.nodes.length;
 	this.root = this.nodes[0];
 	
 }	
 
-BspTree.prototype.getNodeAtPos = function(pos,startNode,sphereRadius,faceList) {
+BspTree.prototype.getNodeAtPos = function(pos,startNode) {
 	var node = startNode || this.root ;
-	var radius = sphereRadius || 0;
-	var nn;
 
-	if (node.plane === undefined) {
+	if (node.isLeaf) {
+		
 		return node;
+
 	} else {
+		
 		var d = node.plane.distanceToPoint(pos);
-		if (d >= radius ) {
-			nn = node.node1;
-		} else if (d < -radius) {
-			nn = node.node2;
-		} else { //we may be colling, check
-			// if sphereIntersectsFaceList(pos,radius,faceList,node.faceIdxs) {
-			// 	return false; //intersection found, abort checking
-			// }
-		}
-		var nextNode = this.nodes[ nn ];
+
+		var nextNode = this.nodes[ d >= 0 ? node.node1 : node.node2 ];
+
 		return this.getNodeAtPos(pos, nextNode);
 	}
 };
+
+BspTree.prototype.checkCollision = function(pos,sphereRadius,startNode) {
+	var node = startNode || this.root ;
+	var radius = sphereRadius || 0;
+	
+	if (node.isLeaf) {
+
+		return node.isSolid;
+
+	} else {
+	
+		var d = node.plane.distanceToPoint(pos);
+
+		var n1 = this.nodes[node.node1];
+		var n2 = this.nodes[node.node2];
+
+		if ( d >= radius) {
+			return this.checkCollision(pos, sphereRadius, n1);
+		} else if ( d < -radius) {
+			return this.checkCollision(pos, sphereRadius, n2);
+		} else {
+			return this.checkCollision(pos, sphereRadius, n1) || 
+				   this.checkCollision(pos, sphereRadius, n2);
+		}
+	}
+};
+
 
 var frustrumIntersectsAABB = function() {
 	//based on http://stackoverflow.com/questions/9187871/frustum-culling-when-bounding-box-is-really-big?rq=1
@@ -321,20 +515,152 @@ var frustrumIntersectsAABB = function() {
 }();
 
 
-// var frustumClipAABB = function() {
-// 	var p1 = new THREE.Vector3(),
-// 		p2 = new THREE.Vector3();
+//returns false if aabb is not inside or intersects frustum
+// return true otherwise
+// a new frustum will be return that is adjusted to the region of the aabb inside the frustum
 
-// 	return function (frustum, aabb){
-// 		for ( var i = 0; i < frustum.planes.length; i ++ ) {
-// 			var plane = frustum.planes[i];
-// 			p1.x = plane.normal.x > 0 ? aabb.min.x : aabb.max.x;
-// 			p2.x = plane.normal.x > 0 ? aabb.max.x : aabb.min.x;
-// 			p1.y = plane.normal.y > 0 ? aabb.min.y : aabb.max.y;
-// 			p2.y = plane.normal.y > 0 ? aabb.max.y : aabb.min.y;
-// 			p1.z = plane.normal.z > 0 ? aabb.min.z : aabb.max.z;
-// 			p2.z = plane.normal.z > 0 ? aabb.max.z : aabb.min.z;
+var clipFrustumByAABB = function() {
+	var p1 = new THREE.Vector3(),
+		p2 = new THREE.Vector3();
+		newNormal = new THREE.Vector3();
+		v = new THREE.Vector3();
 
-// 	}
-// }
+	var adjustPlane = function(plane,origin,point) {
+		//change plane in place to contain both origin and point by rotating
+		// in the direction of the plane normal
+		// eq: 
+		// 		n' = n - (v.n)*v
+		// where:
+		//		v = origin - point
 
+		v.subVectors(origin,point);
+		v.multiplyScalar(v.dot(plane.normal))
+		
+		newNormal.subVectors(plane.normal,v).normalize();
+
+		//now we recreate the plane
+
+		plane.setFromNormalAndCoplanarPoint(newNormal,origin);
+		//if we did this right, this plane should contain point
+
+	}
+
+	return function (frustum, origin, aabb){
+
+		var newFrustum = frustum.clone();
+
+		for ( var i = 0; i < frustum.planes.length; i ++ ) {
+
+			var plane = newFrustum.planes[i];
+
+			p1.x = plane.normal.x > 0 ? aabb.min.x : aabb.max.x;
+			p2.x = plane.normal.x > 0 ? aabb.max.x : aabb.min.x;
+			p1.y = plane.normal.y > 0 ? aabb.min.y : aabb.max.y;
+			p2.y = plane.normal.y > 0 ? aabb.max.y : aabb.min.y;
+			p1.z = plane.normal.z > 0 ? aabb.min.z : aabb.max.z;
+			p2.z = plane.normal.z > 0 ? aabb.max.z : aabb.min.z;
+
+			var d1 = plane.distanceToPoint( p1 );
+			var d2 = plane.distanceToPoint( p2 );
+
+			if ( d1 < 0 && d2 < 0) {		//if both outside plane, no intersection
+			
+				return false;
+	
+			} else if ( d1 >=0  &&  d2 >=0  ) { //both in front of plane (inside)
+
+				if (d1 > d2) {
+					throw "expected d1 < d2";
+				}
+				if (i < 5) {		//last plane is the far plane (i hope), do NOT CHANGE THIS ONE
+					
+					adjustPlane(plane, origin, p1);		//by design, p1 is always the closest to the plane
+				}
+			
+			} else {
+				// plane splits aabb, plane does not change
+				
+			}
+
+		}
+		return newFrustum;
+	};
+}();
+
+
+/*var clipPortals = function() {
+
+	var viewProjectionMatrix = new THREE.Matrix4();
+
+	var BB = new THREE.Box3();
+
+	var clipBox = new THREE.Box3( new THREE.Vector3( -1, -1, -1 ), new THREE.Vector3( 1, 1, 1 ) );
+
+	var clippings = [];
+
+	return function ( cell, viewProjectionMatrix, recurse ) {
+
+		var graph = {};
+
+		var viewMatrix = camera.matrixWorldInverse.getInverse( camera.MatrixWorld );
+
+		viewProjectionMatrix.multiplyMatrices( projectionMatrix, viewMatrix);
+
+		for (var i = 0; i < cell.portals.length; i++) {
+
+			var portal = cell.portals[ i ];
+
+			for ( var j = 0; j < portal.polygonVertices.length; j ++ ) {
+
+				projectPoint(vertex, viewProjectionMatrix, portal.screenCoords[j] );
+			
+			}
+			
+			BB.setFromPoints(portal.screenCoords);
+
+			if clipBox.isIntersectionBox( BB ) {
+
+				BB.intersect( clipBox );
+
+				graph.push({
+					cell: cell.name;
+				})
+
+			}
+		}
+
+
+	}
+	
+
+}
+*/
+
+//vertex -- Vector3
+//target -- Vector4
+//projectionMatrix -- Matrix4
+var projectPoint = function(vertex, projectionMatrix, target) {
+
+	target.copy(vertex).applyMatrix4( projectionMatrix );
+
+	//var invW = 1 / target.w;
+
+	//target.x *= invW;
+	//target.y *= invW;
+	//target.z *= invW;
+
+	
+	//Limit w > 0 has solve a few problems I had with portal clipping.
+	// At some point I have to understand why. TODO: that
+	// See: http://stackoverflow.com/questions/13731133/opengl-clip-space-frustum-culling-wrong-results
+	var w = target.w;
+	if (w > 0) {
+		// perspective divide
+		var invw = 1/w;
+		target.x *= invw;
+		target.y *= invw;
+		target.z *= invw;
+	}
+
+	return target;
+}
