@@ -1,3 +1,13 @@
+var CONFIG = {
+	debug: {
+		portalsProj: false,
+		tests: true,
+	}
+}
+
+if (CONFIG.debug.tests) { tests(); }
+
+
 var MAP = 'missiona'
 var startPoint = {
 	x:89,
@@ -95,8 +105,9 @@ function render() {
 	// renderer.setSize(window.innerWidth, window.innerHeight);
 	renderer.render(scene, camera);
 
-	if (camera === camera2) guiDrawPortalsProj();
-
+	if (CONFIG.debug.portalsProj) {
+		if (camera === camera2) guiDrawPortalsProj();
+	}
 
 	// renderer.setViewport(0,0,200, 200);
 	// renderer.render(scene, camera3);

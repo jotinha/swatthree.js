@@ -31,6 +31,8 @@ var CellSystem = function(scn,scnData) {
 
 	this.collider = new Collider(scnData.solids[0],scn.children[0]);
 
+	this.collisionPoint = new THREE.Vector3();
+
 
 };
 
@@ -51,6 +53,7 @@ CellSystem.prototype = {
 	update: function() {
 				
 		var viewProjectionMatrix = new THREE.Matrix4();
+		var oldPos = new THREE.Vector3();
 
 		return function(cameraPosition,camera) {
 
@@ -85,12 +88,20 @@ CellSystem.prototype = {
 
 			this.isColliding = this.collider.checkCollision(cameraPosition,10,ci);
 			this.isCollidingBSP = this.bsp.checkCollision(cameraPosition,10);
+			this.isCollidingVector = this.bsp.checkCollisionVector(oldPos,cameraPosition,0,this.collisionPoint);
+			// this.isCollidingBSP = this.bsp.checkCollision(cameraPosition,10);
+
+
+			oldPos.copy(cameraPosition);
 
 			$('#debugInfo').html(_debugText +
 							'<br>Is colliding? ' +
 							'<br>BVH: ' + this.isColliding + 
-							'<br>BSP: ' + this.isCollidingBSP);
- 
+							'<br>BSP: ' + this.isCollidingBSP + 
+							'<br>BSPDyn: ' + this.isCollidingVector + 
+							'<br>CollisionPoint: ' + this.collisionPoint.x + ', ' + this.collisionPoint.y + ', ' + 	this.collisionPoint.z
+						);
+
 
 		};
 	}(),
@@ -413,79 +424,10 @@ csPortal.prototype = {
 };
 	
 
-//---------------------------------------------------------------------------
-var BspTree = function(nodesData,planesData) {
-	var planes = [];
-	for (var i=0; i < planesData.length; i++) {
-		var p = planesData[i]
-		planes.push(new THREE.Plane(new THREE.Vector3(p[0],p[1],-p[2]),p[3]));
-	}	
-
-	this.nodes = [];
-	for (var i=0; i < nodesData.length; i++) {
-		var n = nodesData[i];
-		this.nodes.push( {
-			nodep : n[0],
-			node1 : n[1],
-			node2 : n[2],
-			cell : n[3],
-			plane : n[4] >= 0 ? planes[n[4]] : undefined,
-			isLeaf: n[4] < 0,
-			isSolid: n[4] < 0 && n[3] === -1,
-		})
-	}
-	this.n_nodes = this.nodes.length;
-	this.root = this.nodes[0];
-	
-}	
-
-BspTree.prototype.getNodeAtPos = function(pos,startNode) {
-	var node = startNode || this.root ;
-
-	if (node.isLeaf) {
-		
-		return node;
-
-	} else {
-		
-		var d = node.plane.distanceToPoint(pos);
-
-		var nextNode = this.nodes[ d >= 0 ? node.node1 : node.node2 ];
-
-		return this.getNodeAtPos(pos, nextNode);
-	}
-};
-
-BspTree.prototype.checkCollision = function(pos,sphereRadius,startNode) {
-	var node = startNode || this.root ;
-	var radius = sphereRadius || 0;
-	
-	if (node.isLeaf) {
-
-		return node.isSolid;
-
-	} else {
-	
-		var d = node.plane.distanceToPoint(pos);
-
-		var n1 = this.nodes[node.node1];
-		var n2 = this.nodes[node.node2];
-
-		if ( d >= radius) {
-			return this.checkCollision(pos, sphereRadius, n1);
-		} else if ( d < -radius) {
-			return this.checkCollision(pos, sphereRadius, n2);
-		} else {
-			return this.checkCollision(pos, sphereRadius, n1) || 
-				   this.checkCollision(pos, sphereRadius, n2);
-		}
-	}
-};
-
 
 var frustrumIntersectsAABB = function() {
 	//based on http://stackoverflow.com/questions/9187871/frustum-culling-when-bounding-box-is-really-big?rq=1
-	var p1 = new THREE.Vector3(),
+	var p1 = new THREE.Vector3(),bsp
 		p2 = new THREE.Vector3();
 
 	return function(frustum,aabb) {
