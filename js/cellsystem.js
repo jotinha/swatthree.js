@@ -88,7 +88,7 @@ CellSystem.prototype = {
 
 			this.isColliding = this.collider.checkCollision(cameraPosition,10,ci);
 			this.isCollidingBSP = this.bsp.checkCollision(cameraPosition,10);
-			this.isCollidingVector = this.bsp.checkCollisionVector(oldPos,cameraPosition,0,this.collisionPoint);
+			this.isCollidingVector = this.bsp.checkCollisionVector(oldPos,cameraPosition,15,this.collisionPoint);
 			// this.isCollidingBSP = this.bsp.checkCollision(cameraPosition,10);
 
 

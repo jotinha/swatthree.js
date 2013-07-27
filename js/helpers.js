@@ -4,6 +4,7 @@ var visControl = {
 	triggers: false,
 	others: true,
 	lightmaps: true,
+	sprites: true,
 	fpview: function() {},
 	about: function() {$('#about').toggle();}
 };
@@ -15,6 +16,7 @@ function initGUI() {
 	show.add(visControl,"worldspawn");
 	show.add(visControl,"doors");
 	show.add(visControl,"triggers");
+	show.add(visControl,"sprites");
 	show.add(visControl,"others");
 	
 	show.add(visControl,"lightmaps")
@@ -51,6 +53,9 @@ var setScnVisibility = function() {
 			} else if (solid._scn_classname === 'trigger') {
 				setVisible(solid,visControl.triggers);
 
+			} else if (solid._scn_classname === 'infodecal') {
+				setVisible(solid,visControl.sprites);
+			
 			} else {
 				setVisible(solid,visControl.others);
 

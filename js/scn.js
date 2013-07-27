@@ -264,3 +264,94 @@ var _iterateAllScnMaterials = function(callback) {
 	}
 };
 
+
+function readOriginStr(str) {
+
+	if (typeof str !== "string") {
+		throw 'expected string';
+	}
+
+	var s = str.split(' ');
+	
+	if (s.length !== 3) {
+		throw 'invalid input string: ' + str;
+	}
+
+	var pos = new THREE.Vector3();
+
+	pos.x = readFloatStr(s[0]);
+	pos.y = readFloatStr(s[1]);	
+	pos.z = readFloatStr(-s[2]);	
+
+	return pos;
+}
+
+function readFloatStr(s) {
+	var f = parseFloat(s);
+	if (isNaN(s)) {
+		throw 'error parsing float: ' + s;
+	}
+	return s;
+}
+
+function createDecal(ent,bsp) {
+	
+	// var texname = ent.Sprite;
+	// if (!texname) continue;
+
+	// var texture = _loadedSprites[texname];
+
+	// if (texture === undefined) {
+	// 	//we assume all sprites were .tga
+	// 	texture = createTexture('./res/pngs/' + texname + '.tga.png');
+	// 	_loadedSprites[texname] = texture;
+	// }
+
+	// var mat = new THREE.SpriteMaterial({map:texture, useScreenCoordinates:false});
+	// var sprite = new THREE.Sprite( mat );
+
+	var depth = readFloatStr(ent.Depth);
+
+	var pos = readOriginStr(ent.origin);
+
+	var sprite = new THREE.Mesh(new THREE.CubeGeometry(depth,depth,depth,1,1,1),new THREE.MeshBasicMaterial({color:0xff0000}));
+	
+	sprite.position.copy(pos);
+
+	return sprite;
+}
+
+function applyDecals(decals,bsp) {
+	for (var i=0; i < decals.length; i++) {
+		var decal = decals[i];
+		//get plane where decal must be applied
+		var plane = new THREE.Plane();
+		var pos = sprite.position;
+		
+		if (bsp.checkCollision(pos,depth,undefined,plane)) {
+			// project point into plane
+			var projPoint = plane.projectPoint(pos);
+
+			sprite.position.copy(projPoint);
+		}
+
+	}
+}
+
+function createEntities(ents) {
+
+	var decals = new THREE.Object3D();
+
+	var _loadedSprites = {};
+
+	for (var i= 0; i < ents.length; i++) {
+		var ent = ents[i];
+
+		if (ent.classname == 'infodecal') {
+			decals.add(createDecal(ent));
+		}
+
+	}
+
+	return decals;
+}

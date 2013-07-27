@@ -2,6 +2,9 @@ var CONFIG = {
 	debug: {
 		portalsProj: false,
 		tests: true,
+	},
+	collision: {
+		camera:false,
 	}
 }
 
@@ -66,7 +69,6 @@ scene.add(ambientLight);
 function animate() {
 	window.requestAnimationFrame(animate);
 
-	
 
 	render();
 
@@ -88,8 +90,13 @@ function render() {
 	// }
 
 	setScnVisibility();
+	var pos = cameraPLControls.getObject().position;
 	if (camera === camera2) {
-		scncs.update(cameraPLControls.getObject().position,camera2);
+		scncs.update(pos,camera2);
+
+		if (CONFIG.collision.camera && scncs.isCollidingVector) {
+			pos.copy(scncs.collisionPoint);
+		}
 	}
 	// if (camera === camera2) {
 	// 	if (scncs.isColliding) {
@@ -143,6 +150,13 @@ $.getJSON("./res/" + MAP + ".json", function(scndata) {
 	scene.add(
 	 	createSkyBox('a_Porch','./res/pngs')
 	);
+
+	//create sprites and decals
+	var decals = createEntities(scndata.ents);
+
+	applyDecals(decals,scncs.bsp);
+
+	scene.add(decals);
 
 	animate();
 });

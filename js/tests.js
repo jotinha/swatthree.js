@@ -38,7 +38,6 @@ function drawAllCellsBBoxes(scndata) {
 
 function tests() {
 
-	var p000 = new THREE.Vector3();
 	var curTest;
 
 	var TOL = 0.0001;
@@ -55,6 +54,8 @@ function tests() {
 		return new THREE.Vector3(x,y,z);
 	}
 
+	var p000 = new THREE.Vector3();
+	var p100 = _p(1,0,0);
 
 	var units = {
 
@@ -78,13 +79,15 @@ function tests() {
 			
 			var bsp = new BspTree(nodeData,planeData);
 
+			var ray = new THREE.Ray();
+			var point = new THREE.Vector3();
+
 			ok( bsp.getNodeAtPos( p000 ).cell  === 1);
 			ok( bsp.getNodeAtPos( _p(15,15,0) ).cell  === 4);
-
-			var point = new THREE.Vector3();
 			 
-			ok( bsp.checkCollisionVector(_p(0,0,0),_p(19,0,0),5,point) === true);
+			ok( bsp.checkCollisionVector(_p(0,0,0),_p(30,0,0),5,point) === true);
 			ok( point.distanceTo(_p(5,0,0)) < TOL);
+			ok( bsp.collideRay(ray.set(p000,p100),0,30,point) === 10);
 
 			ok( bsp.checkCollisionVector(_p(15,15,0),_p(15,0,0),0,point) === true);
 			ok( point.distanceTo(_p(15,10,0)) < TOL);
@@ -95,11 +98,10 @@ function tests() {
 			ok( bsp.checkCollisionVector(_p(25,20,0),_p(0,-5,0),0,point) === true);
 			ok( point.distanceTo(_p(15,10,0)) < TOL);
 
-			// ok( bsp.checkCollisionVector(_p(15,5,0),_p(5,5,0),0,point) === true);
-			// ok( point.distanceTo(_p(10,5,0)) < TOL);
-
-
-
+			var p = _p(15,5,0);
+			ok (bsp.checkCollisionVector(p,p,0,point) === true);
+			ok( point.distanceTo(p) < TOL);
+			
 		},
 
 	};

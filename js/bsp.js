@@ -41,13 +41,20 @@ BspTree.prototype.getNodeAtPos = function(pos,startNode) {
 	}
 };
 
-BspTree.prototype.checkCollision = function(pos,sphereRadius,startNode) {
+BspTree.prototype.checkCollision = function(pos,sphereRadius,startNode,impactPlane) {
 	var node = startNode || this.root ;
 	var radius = sphereRadius || 0;
 	
 	if (node.isLeaf) {
 
-		return node.isSolid;
+		if (node.isSolid) {
+			if (impactPlane) {
+				impactPlane.copy(this.nodes[node.nodep].plane);
+			}
+			return true;
+		} else {
+			return false;
+		}
 
 	} else {
 	
@@ -57,15 +64,106 @@ BspTree.prototype.checkCollision = function(pos,sphereRadius,startNode) {
 		var n2 = this.nodes[node.node2];
 
 		if ( d >= radius) {
-			return this.checkCollision(pos, sphereRadius, n1);
+			return this.checkCollision(pos, sphereRadius, n1, impactPlane);
 		} else if ( d < -radius) {
-			return this.checkCollision(pos, sphereRadius, n2);
+			return this.checkCollision(pos, sphereRadius, n2, impactPlane);
 		} else {
-			return this.checkCollision(pos, sphereRadius, n1) || 
-				   this.checkCollision(pos, sphereRadius, n2);
+			return this.checkCollision(pos, sphereRadius, n2, impactPlane) ||
+				   this.checkCollision(pos, sphereRadius, n1, impactPlane);
+				   
 		}
 	}
 };
+
+BspTree.prototype.collideRay = function() {
+
+	var timpact = null;
+	var nodeList;
+	var _ray;
+	var planeImpact;
+
+	var collide = function(t0,t1,node) {
+
+		var hit = false;
+
+		if (node.isLeaf) {
+			
+			hit = node.isSolid;
+			if (hit) {
+				timpact = t0;
+				planeImpact = nodeList[node.nodep].plane;
+			}
+			return hit;
+
+		}
+
+		var plane = node.plane;
+
+		var isFwd = plane.normal.dot(_ray.direction) < 0;
+
+		var outNode = nodeList[node.node1];
+		var inNode = nodeList[node.node2];
+		
+		var ti = _ray.distanceToPlane_allowNegative(plane);
+
+		if (ti === null) {
+			//ray is parallel to plane
+			return collide(t0,t1,plane.distanceToPoint(_ray.origin) < 0 ? inNode : outNode);
+		}
+
+		if (isFwd) {
+			
+			if (ti >= t1) {	//both outside
+
+				return collide(t0,t1,outNode);
+
+			} else if (ti <= t0) { // both inside
+				
+				return collide(t0,t1,inNode);
+			
+			} else {	
+
+				return collide(t0,ti,outNode) || collide(ti,t1,inNode);
+
+			}
+			
+		} else {
+
+			if (ti >= t1) {	//both inside
+
+				return collide(t0,t1,inNode);
+
+			} else if (ti <= t0) { // both outside
+				
+				return collide(t0,t1,outNode);
+			
+			} else {	
+
+				return collide(ti,t1,outNode) || collide(t0,ti,inNode);
+
+			}
+		}
+
+	};
+
+	return function(ray,t0,t1,impactTarget) {
+
+		nodeList = this.nodes;
+
+		_ray = ray;
+
+		var hit = collide(t0,t1,this.root);
+
+		if (hit) {
+			if (impactTarget) ray.at(timpact,impactTarget);
+			return timpact;
+		} else {
+			return null;
+		}
+
+	}
+
+}();
 
 BspTree.prototype.checkCollisionVector = function() {
 
@@ -77,14 +175,16 @@ BspTree.prototype.checkCollisionVector = function() {
 
 	var nodeList;
 	var radius;
+
+	var localRay = new THREE.Ray();
 	
-	var clipLineInside = function(plane,shift,ray,t0,t1,tout) {
+	var clipLineInside = function(plane,shift,ray,t0,t1,tout,isFwd) {
 
 		tout.t0 = t0;
 		tout.t1 = t1;
 		
 		localPlane.copy(plane);
-		localPlane.constant += shift;
+		localPlane.constant -= shift;
 
 		var d = ray.distanceToPlane_allowNegative(localPlane);
 
@@ -93,26 +193,34 @@ BspTree.prototype.checkCollisionVector = function() {
 			return plane.distanceToPoint(ray.origin) < 0;
 		}
 
-		if ( d < t0 ) {	//p0 and p1 inside
-		
-			return true; 
-		
-		} else if (d < t1 ) { 	// p1 inside
-	
-			tout.t0 = d;
-			
-			return true;
+		if (isFwd) {
 
+			if ( d < t0) {
+				return true;
+			} else if ( d > t1) {
+				return false;
+			} else {
+				tout.t0 = d;
+				return true;
+			}
+		
 		} else {
 
-			return false;
+			if ( d < t0 ) {
+				return false;
+			} else if ( d > t1) {
+				return true;
+			} else {
+				tout.t1 = d;
+				return true;
+			}
 
 		}
 
 	};
 
 
-	var clipLineOutside = function(plane,shift,ray,t0,t1,tout) {
+	var clipLineOutside = function(plane,shift,ray,t0,t1,tout,isFwd) {
 
 		tout.t0 = t0;
 		tout.t1 = t1;
@@ -121,28 +229,32 @@ BspTree.prototype.checkCollisionVector = function() {
 		localPlane.constant += shift;		//shift in
 
 		var d = ray.distanceToPlane_allowNegative(localPlane);
-
 		
 		if ( d === null ) {	//ray is parallel to plane
 
 			return !(plane.distanceToPoint(ray.origin) < 0);
 		}
 
+		if (isFwd) {
 
-		if (d > t1 ) {		//p0 and p1 outside
-			
-			return true;
-		
-		} else if ( d > t0 ){
-		
-			tout.t1 = d;
+			if (d < t0) {
+				return false;
+			} else if ( d > t1) {
+				return true;
+			} else {
+				tout.t1 = d;
+				return true;
+			}
+		} else {
 
-			return true;
-		
-		} else {	// both inside
-			
-			return false;
-
+			if ( d < t0) {
+				return true;
+			} else if ( d > t1) {
+				return false;
+			} else {
+				tout.t0 = d;
+				return true;
+			}
 		}
 
 	};
@@ -161,54 +273,29 @@ BspTree.prototype.checkCollisionVector = function() {
 		
 		var plane = node.plane;
 
-		
-		
 		var tout = {};
 
-		if (plane.normal.dot(ray.direction) < 0 ) {
-
-			if (clipLineInside(plane,-radius,ray,t0,t1,tout)) {
-
-				//go into negative node
-				hit = checkCollisionRay(nodeList[node.node2],tout.t0,tout.t1);
-
-				if (hit) t1 = tout.t0;
-
-			}
+		var isFwd = plane.normal.dot(ray.direction) < 0;
 
 
-			if (clipLineOutside(plane,radius,ray,t0,t1,tout)) {
+		if (clipLineInside(plane,radius,ray,t0,t1,tout,isFwd)) {
 
-				//go into positive node as well because we may have hit a plane sooner
+			//go into negative node
+			hit = checkCollisionRay(nodeList[node.node2],tout.t0,tout.t1);
 
-				hit = checkCollisionRay(nodeList[node.node1],tout.t0,tout.t1) || hit;
-
-			}
-		
-		} else {
-		
-			if (clipLineInside(plane,radius,ray,t0,t1,tout)) {
-
-				//go into negative node
-				hit = checkCollisionRay(nodeList[node.node2],tout.t0,tout.t1);
-
-				if (hit) t1 = tout.t0;
-
-			}
-
-
-			if (clipLineOutside(plane,-radius,ray,t0,t1,tout)) {
-
-				//go into positive node as well because we may have hit a plane sooner
-
-				hit = checkCollisionRay(nodeList[node.node1],tout.t0,tout.t1) || hit;
-
-			}
-
-
+			// if (hit) t1 = tout.t0;
 
 		}
 
+
+		if (clipLineOutside(plane,radius,ray,t0,t1,tout,isFwd)) {
+
+			//go into positive node as well because we may have hit a plane sooner
+
+			hit = checkCollisionRay(nodeList[node.node1],tout.t0,tout.t1) || hit;
+
+		}
+		
 		return hit;
 
 	};
@@ -232,15 +319,15 @@ BspTree.prototype.checkCollisionVector = function() {
 		//p0 == p1
 		if (dist === 0) {
 
-			return false; //TEMP
+			// return false; //TEMP
 
 			// use point checkCollision
-			// if (this.checkCollision(p0,sphereRadius, startNode)) {
-			// 	impactTarget.copy(p0);
-			// 	return true;
-			// } else {
-			// 	return false;
-			// }
+			if (this.checkCollision(p0,radius, node)) {
+				impactTarget.copy(p0);
+				return true;
+			} else {
+				return false;
+			}
 
 		}
 
