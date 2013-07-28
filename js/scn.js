@@ -288,67 +288,96 @@ function readOriginStr(str) {
 
 function readFloatStr(s) {
 	var f = parseFloat(s);
-	if (isNaN(s)) {
-		throw 'error parsing float: ' + s;
+	if (isNaN(f)) {
+		throw 'error parsing float: ' + f;
 	}
-	return s;
+	return f;
 }
 
-function createDecal(ent,bsp) {
+
+var createDecal = function() {
+
+	var _loadedSprites = {};
+	var axis = new THREE.Vector3();
+	var a = new THREE.Vector3(0,0,1);
+	var plane = new THREE.Plane();
+
+	return function(ent,bsp) {
+		//create a simpe square face of side 1 facing positive z
 	
-	// var texname = ent.Sprite;
-	// if (!texname) continue;
+		var texname = ent.Sprite;
+		if (!texname) return;
 
-	// var texture = _loadedSprites[texname];
+		var texture = _loadedSprites[texname];
 
-	// if (texture === undefined) {
-	// 	//we assume all sprites were .tga
-	// 	texture = createTexture('./res/pngs/' + texname + '.tga.png');
-	// 	_loadedSprites[texname] = texture;
-	// }
+		if (texture === undefined) {
+			//we assume all sprites were .tga
+		 	texture = createTexture('./res/pngs/' + texname + '.tga.png');
+		 	_loadedSprites[texname] = texture;
+		}
 
-	// var mat = new THREE.SpriteMaterial({map:texture, useScreenCoordinates:false});
-	// var sprite = new THREE.Sprite( mat );
+		// var mat = new THREE.SpriteMaterial({map:texture, useScreenCoordinates:false});
+		// var sprite = new THREE.Sprite( mat );
 
-	var depth = readFloatStr(ent.Depth);
+		var geom = new THREE.PlaneGeometry(1,1,1);		
+		for (var i=0; i < geom.vertices.length; i++) {
+			geom.vertices[i].z += 0.01;	//prevent z-fighting
+		}
 
-	var pos = readOriginStr(ent.origin);
+		var mat = new THREE.MeshBasicMaterial({map:texture});
+		var sprite = new THREE.Mesh(geom,mat);
 
-	var sprite = new THREE.Mesh(new THREE.CubeGeometry(depth,depth,depth,1,1,1),new THREE.MeshBasicMaterial({color:0xff0000}));
-	
-	sprite.position.copy(pos);
+		var pos = readOriginStr(ent.origin);
+		var depth = readFloatStr(ent.Depth);
+		var angle = readFloatStr(ent.angle || 0);
 
-	return sprite;
-}
-
-function applyDecals(decals,bsp) {
-	for (var i=0; i < decals.length; i++) {
-		var decal = decals[i];
-		//get plane where decal must be applied
-		var plane = new THREE.Plane();
-		var pos = sprite.position;
+		// var sprite = new THREE.Mesh(new THREE.CubeGeometry(depth,depth,depth,1,1,1),new THREE.MeshBasicMaterial({color:0xff0000}));
 		
+		sprite.scale.set(depth,depth,depth);
+
+		var parent = new THREE.Object3D();
+		parent.add(sprite);
+		parent.position.copy(pos);
+
 		if (bsp.checkCollision(pos,depth,undefined,plane)) {
+			sprite.visible = true;
 			// project point into plane
 			var projPoint = plane.projectPoint(pos);
 
-			sprite.position.copy(projPoint);
+			parent.position.copy(projPoint);
+
+			//set rotation of decal to match plane. For this, simply move
+			//normal of mesh to be the same as normal of plane.
+			var b = plane.normal;
+			axis.crossVectors(a,b).normalize();
+			var angle = Math.acos(a.dot(b)/a.length()/b.length());
+
+			sprite.rotateOnAxis(axis,angle);
+		
+		} else {
+			console.warn("Couldn't find plane to apply decal!" + sprite);
+			//couldn't apply decal to plane
+			// sprite.visible = false;
+		
 		}
 
-	}
-}
+		return parent;
 
-function createEntities(ents) {
+	};
+
+}();
+
+
+function createEntities(ents,bsp) {
 
 	var decals = new THREE.Object3D();
 
-	var _loadedSprites = {};
 
 	for (var i= 0; i < ents.length; i++) {
 		var ent = ents[i];
 
 		if (ent.classname == 'infodecal') {
-			decals.add(createDecal(ent));
+			decals.add(createDecal(ent,bsp));
 		}
 
 	}

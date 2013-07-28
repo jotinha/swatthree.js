@@ -152,9 +152,7 @@ $.getJSON("./res/" + MAP + ".json", function(scndata) {
 	);
 
 	//create sprites and decals
-	var decals = createEntities(scndata.ents);
-
-	applyDecals(decals,scncs.bsp);
+	var decals = createEntities(scndata.ents,scncs.bsp);
 
 	scene.add(decals);
 
